@@ -36,9 +36,9 @@ console.assert(result === 1800);
 # Systems
 
 A system is a set of [`Conversion` objects](conversion.ts). For example, the
-code below defines a system for converting from `"hour"` to `"minute"` and from
-`"minute"` to `"second"`. Plugging this system into the `convert` function
-yields the same result as before:
+code below defines conversions from `"hour"` to `"minute"` and from `"minute"`
+to `"second"`. Plugging this system into the `convert` function yields the same
+result as before:
 
 ```ts
 import { Conversion, convert } from "./mod.ts";
