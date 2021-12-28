@@ -35,10 +35,13 @@ console.assert(result === 1800);
 
 # Systems
 
-A system is a set of [`Conversion` objects](conversion.ts). For example, the
+A system is a set of [`Conversion`](conversion.ts) objects. For example, the
 code below defines conversions from `"hour"` to `"minute"` and from `"minute"`
 to `"second"`. Plugging this system into the `convert` function yields the same
-result as before:
+result as before. Note how there is no explicit conversion function from
+`"hour"` to `"second"`, but an implicit conversion exists via the `"minute"`
+unit. The `convert` function automatically finds the `hour -> minute -> second`
+path and chains the conversion functions:
 
 ```ts
 import { Conversion, convert } from "./mod.ts";
@@ -48,50 +51,97 @@ type Unit =
   | "second"
   | "minute";
 
-const system: Conversion<Unit>[] = [{
-  source: "hour",
-  target: "minute",
-  apply: (value) => value * 60,
-}, {
-  source: "minute",
-  target: "second",
-  apply: (value) => value * 60,
-}];
+function getSystem(): Conversion<Unit>[] {
+  return [{
+    source: "hour",
+    target: "minute",
+    apply: (value) => value * 60,
+  }, {
+    source: "minute",
+    target: "second",
+    apply: (value) => value * 60,
+  }];
+}
 
 const result = convert({
   value: 0.5,
   source: "hour",
   target: "second",
-  system,
+  system: getSystem(),
 });
 
 console.assert(result === 1800);
 ```
 
-Note how there is no explicit conversion function from `"hour"` to `"second"`,
-but an implicit conversion exists via the `"minute"` unit. The `convert`
-function automatically finds the `hour -> minute -> second` path and chains the
-conversion functions.
-
-If we wanted to convert back from `"second"` to `"hour"`, two additional
-conversions could be added to the system: one from `"second"` to `"minute"` and
-one from `"minute"` to `"hour"`. There is a simpler way to do this using a
-[parametric system](#parametric-systems).
-
 ## Parametric Systems
 
-Conversions in a system sometimes require parameters. For example, in a
-[musical time unit system](systems/music_time.ts), a `tempo` parameter is needed
-to convert from `"beat"` to `"second"`. Parametric systems can further be
-generic, which means they are not bound to a specific set of units. Such systems
-can be used to compose larger systems from smaller ones.
+Systems sometimes depend on external parameters. For example, in a
+[musical time unit system](systems/music_time.ts) a `tempo` parameter is needed
+to convert from `"beat"` to `"second"`. Parameters can be passed to the
+`getSystem` function:
 
-An example of a generic, parametric system is the
-[`Factor` system](systems/factor.ts). It takes `target` unit, a `factor`, and a
-`source` unit, and returns a system that consists of two conversions: one
+```ts
+import { Conversion, convert } from "./mod.ts";
+
+type Unit =
+  | "beat"
+  | "second";
+
+type Options = {
+  tempo: number;
+};
+
+function getSystem(options: Options): Conversion<Unit>[] {
+  return [{
+    source: "beat",
+    target: "second",
+    apply: (value) => value * 60 / options.tempo,
+  }];
+}
+
+const result = convert({
+  value: 1,
+  source: "beat",
+  target: "second",
+  system: getSystem({
+    tempo: 120,
+  }),
+});
+
+console.assert(result === 0.5);
+```
+
+## Generic Systems
+
+Generic systems are not bound to a specific set of units and can thus be used as
+templates for other unit systems. For example, the
+[`Factor` system](systems/factor.ts) takes a `target` unit, numeric `factor`,
+and `source` unit, and returns a system that consists of two conversions: one
 multiplies the `source` unit by the `factor` and one divides the `target` unit
-by the `factor`. For example, one can build a partial
-[`SiTime` system](systems/si_time.ts) by concatenating two
+by the `factor`:
+
+```ts
+import { Conversion, convert, Factor } from "./mod.ts";
+
+type Unit =
+  | "minute"
+  | "second";
+
+const result = convert({
+  value: 30,
+  source: "second",
+  target: "minute",
+  system: Factor.getSystem<Unit>("minute", 60, "second"),
+});
+
+console.assert(result === 0.5);
+```
+
+## Composite Systems
+
+Since a system is an array of conversions, two systems can be merged by
+concatenating their arrays. For example, one can build a system for converting
+between `"hour"`, `"minute"`, and `"second"` by concatenating two
 [`Factor` systems](systems/factor.ts):
 
 ```ts
@@ -102,16 +152,18 @@ type Unit =
   | "second"
   | "minute";
 
-const system: Conversion<Unit>[] = [
-  ...Factor.getSystem("hour", 60, "minute"),
-  ...Factor.getSystem("minute", 60, "second"),
-];
+function getSystem(): Conversion<Unit>[] {
+  return [
+    ...Factor.getSystem("hour", 60, "minute"),
+    ...Factor.getSystem("minute", 60, "second"),
+  ];
+}
 
 const result = convert({
   value: 0.5,
   source: "hour",
   target: "second",
-  system,
+  system: getSystem(),
 });
 
 console.assert(result === 1800);
@@ -132,9 +184,10 @@ building custom systems:
 
 # Future Work
 
-- Conversion DSL.
-- Predefined systems for common units.
-- Support for unit abbreviations or aliases.
-- Multi-dimensional conversions (e.g. `m/s -> km/h`).
-- Additional parametric systems (e.g. `Linear` for `K -> °C`, `Exp` for
-  `dB -> ratio`).
+- Unit abbreviations or aliases (e.g. `second = s`).
+- Unit parsing (e.g. `"1s" -> [1, "second"]`).
+- Predefined systems for common units (e.g. weight, length).
+- Additive conversion (e.g. `1h2m3s -> 1h + 2m + 3s`).
+- Multi-dimensional conversions (e.g. `1 m/s -> 3.6 km/h`).
+- More generic systems (e.g. `Linear` for `K -> °C`, `Exp` for `dB -> ratio`).
+- Conversion DSL (e.g. `time("0.5h").to("s")`)
