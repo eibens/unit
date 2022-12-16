@@ -66,5 +66,7 @@ export function findPath<Vertex, Edge>(
     }
   }
 
-  throw new Error(`No path exists between these vertices`);
+  throw new Error(
+    `No path exists between vertex '${options.source}' and vertex '${options.target}'`,
+  );
 }
