@@ -35,7 +35,7 @@ export type ConvertOptions<Unit> = {
  * @returns the converted value in the target unit.
  * @throws if the unit system has no path for the conversion.
  */
-export function convert<Unit extends string>(
+export function convert<Unit>(
   options: ConvertOptions<Unit>,
 ): number {
   // Find the conversion path.

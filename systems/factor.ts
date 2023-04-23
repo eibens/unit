@@ -16,7 +16,7 @@ import { Conversion } from "../conversion.ts";
  * @param source is the source unit.
  * @returns the two conversions.
  */
-export function getSystem<Unit extends string>(
+export function getSystem<Unit>(
   target: Unit,
   factor: number,
   source: Unit,
